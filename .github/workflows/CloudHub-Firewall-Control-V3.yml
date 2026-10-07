@@ -1,3 +1,4 @@
+```yaml
 name: CloudHub 2.0 Firewall Control V3
 
 on:
@@ -41,7 +42,6 @@ jobs:
           ANYPOINT_CLIENT_SECRET: ${{ secrets.ANYPOINT_CLIENT_SECRET }}
           ANYPOINT_ORG_ID: ${{ secrets.ANYPOINT_ORG_ID }}
           ANYPOINT_PRIVATE_SPACE_ID: ${{ secrets.ANYPOINT_PRIVATE_SPACE_ID }}
-
           RESTORED_FIREWALL_JSON: ${{ vars.RESTORED_FIREWALL_JSON }}
           KILL_SWITCH_FIREWALL_JSON: ${{ vars.KILL_SWITCH_FIREWALL_JSON }}
 
@@ -50,7 +50,7 @@ jobs:
           ./scripts/cloudhub_firewall_control.sh "${{ inputs.mode }}"
 
       - name: Upload Kill-Switch Backup
-        if: ${{ inputs.mode == 'kill-switch' }}
+        if: inputs.mode == 'kill-switch'
         uses: actions/upload-artifact@v4
         with:
           name: firewall-backup-${{ inputs.environment }}-${{ github.run_number }}
