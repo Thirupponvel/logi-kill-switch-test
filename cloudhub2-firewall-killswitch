@@ -1,3 +1,4 @@
+```bash
 #!/usr/bin/env bash
 
 set -euo pipefail
@@ -33,8 +34,8 @@ if [[ "${MODE}" != "restored" && "${MODE}" != "kill-switch" ]]; then
     echo "ERROR: Invalid mode."
     echo ""
     echo "Usage:"
-    echo "  ./cloudhub_firewall_control.sh restored"
-    echo "  ./cloudhub_firewall_control.sh kill-switch"
+    echo "  ./cloudhub2-firewall-killswitch restored"
+    echo "  ./cloudhub2-firewall-killswitch kill-switch"
     echo ""
 
     exit 1
@@ -44,10 +45,11 @@ fi
 # Paths
 # ==============================================================
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
+# Backup is stored temporarily on the GitHub runner.
+# It is uploaded as a GitHub Actions Artifact by the workflow.
+# No backups folder is created in the repository.
 
-BACKUP_DIR="${PROJECT_DIR}/backups"
+BACKUP_DIR="/tmp/cloudhub-firewall-backup"
 
 PS_URL="https://${ANYPOINT_HOST}/runtimefabric/api/organizations/${ANYPOINT_ORG_ID}/privatespaces/${ANYPOINT_PRIVATE_SPACE_ID}"
 
@@ -317,3 +319,4 @@ else
     exit 1
 
 fi
+```
