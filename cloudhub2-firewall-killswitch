@@ -29,7 +29,6 @@ KILL_SWITCH_FIREWALL_JSON="${KILL_SWITCH_FIREWALL_JSON:?ERROR: KILL_SWITCH_FIREW
 MODE="${1:-}"
 
 if [[ "${MODE}" != "restored" && "${MODE}" != "kill-switch" ]]; then
-
     echo ""
     echo "ERROR: Invalid mode."
     echo ""
@@ -37,7 +36,6 @@ if [[ "${MODE}" != "restored" && "${MODE}" != "kill-switch" ]]; then
     echo "  ./cloudhub2-firewall-killswitch restored"
     echo "  ./cloudhub2-firewall-killswitch kill-switch"
     echo ""
-
     exit 1
 fi
 
@@ -45,17 +43,13 @@ fi
 # Paths
 # ==============================================================
 
-# Backup is stored temporarily on the GitHub runner.
-# It is uploaded as a GitHub Actions Artifact by the workflow.
+# Backup is temporary on the GitHub runner.
+# GitHub Actions uploads it as an artifact.
 # No backups folder is created in the repository.
 
 BACKUP_DIR="/tmp/cloudhub-firewall-backup"
 
 PS_URL="https://${ANYPOINT_HOST}/runtimefabric/api/organizations/${ANYPOINT_ORG_ID}/privatespaces/${ANYPOINT_PRIVATE_SPACE_ID}"
-
-# ==============================================================
-# Create backup directory only for Kill-Switch
-# ==============================================================
 
 if [[ "${MODE}" == "kill-switch" ]]; then
     mkdir -p "${BACKUP_DIR}"
@@ -74,7 +68,7 @@ echo "=============================================================="
 echo ""
 
 # ==============================================================
-# 1. Authenticate using Connected App
+# 1. Authenticate
 # ==============================================================
 
 echo "==> [1/5] Authenticating using Anypoint Connected App..."
@@ -87,14 +81,18 @@ TOKEN_RESPONSE=$(curl -sS \
     --data-urlencode "client_secret=${ANYPOINT_CLIENT_SECRET}" \
     --data-urlencode "grant_type=client_credentials")
 
+if ! echo "${TOKEN_RESPONSE}" | jq empty >/dev/null 2>&1; then
+    echo ""
+    echo "ERROR: Authentication API returned invalid JSON."
+    exit 1
+fi
+
 TOKEN=$(echo "${TOKEN_RESPONSE}" | jq -r '.access_token // empty')
 
 if [[ -z "${TOKEN}" ]]; then
-
     echo ""
     echo "ERROR: Failed to retrieve access token."
     echo "Connected App authentication failed."
-
     exit 1
 fi
 
@@ -114,22 +112,14 @@ PS_CONFIG=$(curl -sS \
     -H "Content-Type: application/json")
 
 if [[ -z "${PS_CONFIG}" ]]; then
-
     echo ""
     echo "ERROR: Empty response from Private Space API."
-
     exit 1
 fi
 
-# ==============================================================
-# Validate JSON
-# ==============================================================
-
 if ! echo "${PS_CONFIG}" | jq empty >/dev/null 2>&1; then
-
     echo ""
     echo "ERROR: Private Space API returned invalid JSON."
-
     exit 1
 fi
 
@@ -150,28 +140,19 @@ if [[ "${MODE}" == "kill-switch" ]]; then
 
     BACKUP_FILE="${BACKUP_DIR}/firewall-backup-${TIMESTAMP}.json"
 
-    echo "${PS_CONFIG}" |
-        jq '{
-            managedFirewallRules: (.managedFirewallRules // [])
-        }' > "${BACKUP_FILE}"
-
-    # ----------------------------------------------------------
-    # Validate Backup
-    # ----------------------------------------------------------
+    echo "${PS_CONFIG}" | jq '{
+        managedFirewallRules: (.managedFirewallRules // [])
+    }' > "${BACKUP_FILE}"
 
     if [[ ! -s "${BACKUP_FILE}" ]]; then
-
         echo ""
         echo "ERROR: Backup file was not created."
-
         exit 1
     fi
 
     if ! jq empty "${BACKUP_FILE}" >/dev/null 2>&1; then
-
         echo ""
         echo "ERROR: Backup JSON is invalid."
-
         exit 1
     fi
 
@@ -212,10 +193,8 @@ fi
 # ==============================================================
 
 if ! echo "${FIREWALL_JSON}" | jq empty >/dev/null 2>&1; then
-
     echo ""
     echo "ERROR: Firewall configuration contains invalid JSON."
-
     exit 1
 fi
 
@@ -249,10 +228,6 @@ echo "HTTP Status: ${HTTP_CODE}"
 
 if [[ "${HTTP_CODE}" =~ ^2[0-9][0-9]$ ]]; then
 
-    # ----------------------------------------------------------
-    # Kill-Switch Success
-    # ----------------------------------------------------------
-
     if [[ "${MODE}" == "kill-switch" ]]; then
 
         echo ""
@@ -263,10 +238,6 @@ if [[ "${HTTP_CODE}" =~ ^2[0-9][0-9]$ ]]; then
         echo "Pre-kill-switch firewall backup created successfully."
         echo "Backup file: ${BACKUP_FILE}"
         echo ""
-
-    # ----------------------------------------------------------
-    # Restored Success
-    # ----------------------------------------------------------
 
     else
 
@@ -280,10 +251,6 @@ if [[ "${HTTP_CODE}" =~ ^2[0-9][0-9]$ ]]; then
 
 else
 
-    # ----------------------------------------------------------
-    # PATCH Failed
-    # ----------------------------------------------------------
-
     echo ""
     echo "=============================================================="
     echo " FIREWALL UPDATE FAILED"
@@ -291,29 +258,17 @@ else
     echo ""
     echo "HTTP Status: ${HTTP_CODE}"
 
-    # ----------------------------------------------------------
-    # Display API Error Response
-    # ----------------------------------------------------------
-
     if [[ -n "${HTTP_BODY}" ]]; then
-
         echo ""
         echo "API Response:"
         echo "${HTTP_BODY}"
-
     fi
 
-    # ----------------------------------------------------------
-    # Preserve Backup if Kill-Switch Failed
-    # ----------------------------------------------------------
-
     if [[ "${MODE}" == "kill-switch" ]]; then
-
         echo ""
         echo "IMPORTANT:"
         echo "The pre-kill-switch firewall backup has been preserved."
         echo "Backup file: ${BACKUP_FILE}"
-
     fi
 
     exit 1
