@@ -1,4 +1,3 @@
-```yaml
 name: CloudHub 2.0 Firewall Control V3
 
 on:
@@ -56,4 +55,3 @@ jobs:
           name: firewall-backup-${{ inputs.environment }}-${{ github.run_number }}
           path: backups/
           retention-days: 90
-```
