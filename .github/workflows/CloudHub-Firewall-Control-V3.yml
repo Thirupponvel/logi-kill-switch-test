@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       environment:
-        description: Select deployment environment
+        description: "Select deployment environment"
         required: true
         type: choice
         options:
@@ -12,7 +12,7 @@ on:
           - Prod
 
       mode:
-        description: Select firewall operation
+        description: "Select firewall operation"
         required: true
         type: choice
         options:
@@ -55,4 +55,3 @@ jobs:
           path: /tmp/cloudhub-firewall-backup/firewall-backup-*.json
           if-no-files-found: warn
           retention-days: 90
-```
