@@ -35,6 +35,27 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y jq curl
 
+      - name: Verify script and dependencies
+        run: |
+          echo "Current directory:"
+          pwd
+
+          echo ""
+          echo "Repository files:"
+          ls -la
+
+          echo ""
+          echo "Checking jq:"
+          jq --version
+
+          echo ""
+          echo "Checking curl:"
+          curl --version
+
+          echo ""
+          echo "Checking firewall script:"
+          ls -l ./cloudhub2-firewall-killswitch
+
       - name: Execute Firewall Control
         env:
           ANYPOINT_CLIENT_ID: ${{ secrets.ANYPOINT_CLIENT_ID }}
@@ -44,8 +65,7 @@ jobs:
           RESTORED_FIREWALL_JSON: ${{ vars.RESTORED_FIREWALL_JSON }}
           KILL_SWITCH_FIREWALL_JSON: ${{ vars.KILL_SWITCH_FIREWALL_JSON }}
         run: |
-          chmod +x ./cloudhub2-firewall-killswitch
-          ./cloudhub2-firewall-killswitch "${{ inputs.mode }}"
+          bash ./cloudhub2-firewall-killswitch "${{ inputs.mode }}"
 
       - name: Upload Kill-Switch Backup
         if: always() && inputs.mode == 'kill-switch'
