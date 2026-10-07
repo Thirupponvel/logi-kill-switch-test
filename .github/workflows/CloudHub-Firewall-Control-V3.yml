@@ -21,7 +21,6 @@ on:
 
 jobs:
   firewall-control:
-    name: CloudHub Firewall Control
     runs-on: ubuntu-latest
 
     environment:
@@ -32,13 +31,11 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Install dependencies
-        shell: bash
         run: |
           sudo apt-get update
           sudo apt-get install -y jq curl
 
       - name: Execute Firewall Control
-        shell: bash
         env:
           ANYPOINT_CLIENT_ID: ${{ secrets.ANYPOINT_CLIENT_ID }}
           ANYPOINT_CLIENT_SECRET: ${{ secrets.ANYPOINT_CLIENT_SECRET }}
@@ -57,4 +54,3 @@ jobs:
           name: firewall-backup-${{ inputs.environment }}-${{ github.run_number }}
           path: backups/
           retention-days: 90
-```
