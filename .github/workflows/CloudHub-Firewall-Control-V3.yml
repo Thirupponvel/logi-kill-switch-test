@@ -1,8 +1,14 @@
+```yaml
 name: CloudHub 2.0 Firewall Control V3
 
 on:
   workflow_dispatch:
     inputs:
+
+      # ========================================================
+      # Environment Selection
+      # ========================================================
+
       environment:
         description: "Select deployment environment"
         required: true
@@ -10,6 +16,10 @@ on:
         options:
           - Sandbox
           - Prod
+
+      # ========================================================
+      # Firewall Operation
+      # ========================================================
 
       mode:
         description: "Select firewall operation"
@@ -19,23 +29,45 @@ on:
           - restored
           - kill-switch
 
+
 jobs:
+
   firewall-control:
+
     runs-on: ubuntu-latest
+
+    # ========================================================
+    # Attach Selected GitHub Environment
+    # ========================================================
 
     environment:
       name: ${{ inputs.environment }}
 
     steps:
+
+      # ========================================================
+      # 1. Checkout Repository
+      # ========================================================
+
       - name: Checkout repository
         uses: actions/checkout@v4
+
+
+      # ========================================================
+      # 2. Install Dependencies
+      # ========================================================
 
       - name: Install dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y jq curl
 
-      - name: Execute Firewall Control
+
+      # ========================================================
+      # 3. Validate Required Configuration
+      # ========================================================
+
+      - name: Validate configuration
         env:
           ANYPOINT_CLIENT_ID: ${{ secrets.ANYPOINT_CLIENT_ID }}
           ANYPOINT_CLIENT_SECRET: ${{ secrets.ANYPOINT_CLIENT_SECRET }}
@@ -45,13 +77,86 @@ jobs:
           KILL_SWITCH_FIREWALL_JSON: ${{ vars.KILL_SWITCH_FIREWALL_JSON }}
 
         run: |
-          chmod +x scripts/cloudhub_firewall_control.sh
-          ./scripts/cloudhub_firewall_control.sh "${{ inputs.mode }}"
+          echo "Validating required configuration..."
+
+          if [[ -z "${ANYPOINT_CLIENT_ID}" ]]; then
+            echo "ERROR: ANYPOINT_CLIENT_ID is missing"
+            exit 1
+          fi
+
+          if [[ -z "${ANYPOINT_CLIENT_SECRET}" ]]; then
+            echo "ERROR: ANYPOINT_CLIENT_SECRET is missing"
+            exit 1
+          fi
+
+          if [[ -z "${ANYPOINT_ORG_ID}" ]]; then
+            echo "ERROR: ANYPOINT_ORG_ID is missing"
+            exit 1
+          fi
+
+          if [[ -z "${ANYPOINT_PRIVATE_SPACE_ID}" ]]; then
+            echo "ERROR: ANYPOINT_PRIVATE_SPACE_ID is missing"
+            exit 1
+          fi
+
+          if [[ -z "${RESTORED_FIREWALL_JSON}" ]]; then
+            echo "ERROR: RESTORED_FIREWALL_JSON is missing"
+            exit 1
+          fi
+
+          if [[ -z "${KILL_SWITCH_FIREWALL_JSON}" ]]; then
+            echo "ERROR: KILL_SWITCH_FIREWALL_JSON is missing"
+            exit 1
+          fi
+
+          echo "All required configuration is available."
+
+
+      # ========================================================
+      # 4. Execute Firewall Control
+      # ========================================================
+
+      - name: Execute Firewall Control
+        env:
+
+          # ----------------------------------------------------
+          # Anypoint Connected App
+          # ----------------------------------------------------
+
+          ANYPOINT_CLIENT_ID: ${{ secrets.ANYPOINT_CLIENT_ID }}
+          ANYPOINT_CLIENT_SECRET: ${{ secrets.ANYPOINT_CLIENT_SECRET }}
+
+          # ----------------------------------------------------
+          # CloudHub 2.0 Private Space
+          # ----------------------------------------------------
+
+          ANYPOINT_ORG_ID: ${{ secrets.ANYPOINT_ORG_ID }}
+          ANYPOINT_PRIVATE_SPACE_ID: ${{ secrets.ANYPOINT_PRIVATE_SPACE_ID }}
+
+          # ----------------------------------------------------
+          # Firewall Configuration
+          # ----------------------------------------------------
+
+          RESTORED_FIREWALL_JSON: ${{ vars.RESTORED_FIREWALL_JSON }}
+          KILL_SWITCH_FIREWALL_JSON: ${{ vars.KILL_SWITCH_FIREWALL_JSON }}
+
+        run: |
+          chmod +x cloudhub2-firewall-killswitch
+
+          ./cloudhub2-firewall-killswitch "${{ inputs.mode }}"
+
+
+      # ========================================================
+      # 5. Upload Kill-Switch Backup
+      #    ONLY WHEN MODE = kill-switch
+      # ========================================================
 
       - name: Upload Kill-Switch Backup
         if: inputs.mode == 'kill-switch'
         uses: actions/upload-artifact@v4
+
         with:
           name: firewall-backup-${{ inputs.environment }}-${{ github.run_number }}
           path: backups/
           retention-days: 90
+```
