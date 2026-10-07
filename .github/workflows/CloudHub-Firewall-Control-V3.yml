@@ -48,7 +48,7 @@ jobs:
           ./cloudhub2-firewall-killswitch "${{ inputs.mode }}"
 
       - name: Upload Kill-Switch Backup
-        if: ${{ always() && inputs.mode == 'kill-switch' }}
+        if: always() && inputs.mode == 'kill-switch'
         uses: actions/upload-artifact@v4
         with:
           name: firewall-backup-${{ inputs.environment }}-${{ github.run_number }}
