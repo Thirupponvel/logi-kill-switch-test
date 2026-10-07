@@ -3,16 +3,7 @@
 
 set -euo pipefail
 
-# ==============================================================
-# CloudHub 2.0 - Firewall Control
-# Restored / Kill-Switch
-# ==============================================================
-
 ANYPOINT_HOST="anypoint.mulesoft.com"
-
-# ==============================================================
-# Required Environment Variables
-# ==============================================================
 
 ANYPOINT_CLIENT_ID="${ANYPOINT_CLIENT_ID:?ERROR: ANYPOINT_CLIENT_ID is not set}"
 ANYPOINT_CLIENT_SECRET="${ANYPOINT_CLIENT_SECRET:?ERROR: ANYPOINT_CLIENT_SECRET is not set}"
@@ -22,10 +13,6 @@ ANYPOINT_PRIVATE_SPACE_ID="${ANYPOINT_PRIVATE_SPACE_ID:?ERROR: ANYPOINT_PRIVATE_
 RESTORED_FIREWALL_JSON="${RESTORED_FIREWALL_JSON:?ERROR: RESTORED_FIREWALL_JSON is not set}"
 KILL_SWITCH_FIREWALL_JSON="${KILL_SWITCH_FIREWALL_JSON:?ERROR: KILL_SWITCH_FIREWALL_JSON is not set}"
 
-# ==============================================================
-# Input
-# ==============================================================
-
 MODE="${1:-}"
 
 if [[ "${MODE}" != "restored" && "${MODE}" != "kill-switch" ]]; then
@@ -33,20 +20,13 @@ if [[ "${MODE}" != "restored" && "${MODE}" != "kill-switch" ]]; then
     echo "ERROR: Invalid mode."
     echo ""
     echo "Usage:"
-    echo "  ./cloudhub2-firewall-killswitch restored"
-    echo "  ./cloudhub2-firewall-killswitch kill-switch"
+    echo "  bash ./cloudhub2-firewall-killswitch restored"
+    echo "  bash ./cloudhub2-firewall-killswitch kill-switch"
     echo ""
     exit 1
 fi
 
-# ==============================================================
-# Paths
-# ==============================================================
-
-# Backup is temporary on the GitHub runner.
-# GitHub Actions uploads it as an artifact.
-# No backups folder is created in the repository.
-
+# Backup is temporary and will be uploaded as a GitHub Actions artifact.
 BACKUP_DIR="/tmp/cloudhub-firewall-backup"
 
 PS_URL="https://${ANYPOINT_HOST}/runtimefabric/api/organizations/${ANYPOINT_ORG_ID}/privatespaces/${ANYPOINT_PRIVATE_SPACE_ID}"
@@ -55,17 +35,13 @@ if [[ "${MODE}" == "kill-switch" ]]; then
     mkdir -p "${BACKUP_DIR}"
 fi
 
-# ==============================================================
-# Header
-# ==============================================================
-
-echo ""
-echo "=============================================================="
-echo " CloudHub 2.0 - Firewall Control"
-echo "=============================================================="
-echo " Mode: ${MODE}"
-echo "=============================================================="
-echo ""
+printf '\n'
+printf '%s\n' '=============================================================='
+printf '%s\n' ' CloudHub 2.0 - Firewall Control'
+printf '%s\n' '=============================================================='
+printf ' Mode: %s\n' "${MODE}"
+printf '%s\n' '=============================================================='
+printf '\n'
 
 # ==============================================================
 # 1. Authenticate
@@ -99,7 +75,7 @@ fi
 echo "Connected App authentication successful."
 
 # ==============================================================
-# 2. Get Current Private Space Configuration
+# 2. Get Private Space Configuration
 # ==============================================================
 
 echo ""
@@ -126,8 +102,7 @@ fi
 echo "Private Space configuration retrieved successfully."
 
 # ==============================================================
-# 3. Backup Current Firewall
-#    ONLY FOR KILL-SWITCH
+# 3. Create Backup - Kill Switch Only
 # ==============================================================
 
 if [[ "${MODE}" == "kill-switch" ]]; then
@@ -188,10 +163,6 @@ else
 
 fi
 
-# ==============================================================
-# Validate Firewall JSON
-# ==============================================================
-
 if ! echo "${FIREWALL_JSON}" | jq empty >/dev/null 2>&1; then
     echo ""
     echo "ERROR: Firewall configuration contains invalid JSON."
@@ -230,32 +201,33 @@ if [[ "${HTTP_CODE}" =~ ^2[0-9][0-9]$ ]]; then
 
     if [[ "${MODE}" == "kill-switch" ]]; then
 
-        echo ""
-        echo "=============================================================="
-        echo " KILL SWITCH SUCCESSFULLY ENGAGED"
-        echo "=============================================================="
-        echo ""
+        printf '\n'
+        printf '%s\n' '=============================================================='
+        printf '%s\n' ' KILL SWITCH SUCCESSFULLY ENGAGED'
+        printf '%s\n' '=============================================================='
+        printf '\n'
         echo "Pre-kill-switch firewall backup created successfully."
         echo "Backup file: ${BACKUP_FILE}"
         echo ""
 
     else
 
-        echo ""
-        echo "=============================================================="
-        echo " FIREWALL CONFIGURATION SUCCESSFULLY RESTORED"
-        echo "=============================================================="
-        echo ""
+        printf '\n'
+        printf '%s\n' '=============================================================='
+        printf '%s\n' ' FIREWALL CONFIGURATION SUCCESSFULLY RESTORED'
+        printf '%s\n' '=============================================================='
+        printf '\n'
 
     fi
 
 else
 
-    echo ""
-    echo "=============================================================="
-    echo " FIREWALL UPDATE FAILED"
-    echo "=============================================================="
-    echo ""
+    printf '\n'
+    printf '%s\n' '=============================================================='
+    printf '%s\n' ' FIREWALL UPDATE FAILED'
+    printf '%s\n' '=============================================================='
+    printf '\n'
+
     echo "HTTP Status: ${HTTP_CODE}"
 
     if [[ -n "${HTTP_BODY}" ]]; then
