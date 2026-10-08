@@ -2,7 +2,15 @@
 
 set -euo pipefail
 
+# ==============================================================
+# CloudHub 2.0 Private Space - Firewall Kill Switch
+# ==============================================================
+
 ANYPOINT_HOST="anypoint.mulesoft.com"
+
+# --------------------------------------------------------------
+# Required environment variables
+# --------------------------------------------------------------
 
 ANYPOINT_CLIENT_ID="${ANYPOINT_CLIENT_ID:?ERROR: ANYPOINT_CLIENT_ID is not set}"
 ANYPOINT_CLIENT_SECRET="${ANYPOINT_CLIENT_SECRET:?ERROR: ANYPOINT_CLIENT_SECRET is not set}"
@@ -11,6 +19,10 @@ ANYPOINT_PRIVATE_SPACE_ID="${ANYPOINT_PRIVATE_SPACE_ID:?ERROR: ANYPOINT_PRIVATE_
 
 RESTORED_FIREWALL_JSON="${RESTORED_FIREWALL_JSON:?ERROR: RESTORED_FIREWALL_JSON is not set}"
 KILL_SWITCH_FIREWALL_JSON="${KILL_SWITCH_FIREWALL_JSON:?ERROR: KILL_SWITCH_FIREWALL_JSON is not set}"
+
+# --------------------------------------------------------------
+# Mode
+# --------------------------------------------------------------
 
 MODE="${1:-}"
 
@@ -25,7 +37,10 @@ if [[ "${MODE}" != "restored" && "${MODE}" != "kill-switch" ]]; then
     exit 1
 fi
 
-# Backup is temporary and will be uploaded as a GitHub Actions artifact.
+# --------------------------------------------------------------
+# Temporary backup directory
+# --------------------------------------------------------------
+
 BACKUP_DIR="/tmp/cloudhub-firewall-backup"
 
 PS_URL="https://${ANYPOINT_HOST}/runtimefabric/api/organizations/${ANYPOINT_ORG_ID}/privatespaces/${ANYPOINT_PRIVATE_SPACE_ID}"
@@ -33,6 +48,10 @@ PS_URL="https://${ANYPOINT_HOST}/runtimefabric/api/organizations/${ANYPOINT_ORG_
 if [[ "${MODE}" == "kill-switch" ]]; then
     mkdir -p "${BACKUP_DIR}"
 fi
+
+# ==============================================================
+# Header
+# ==============================================================
 
 printf '\n'
 printf '%s\n' '=============================================================='
@@ -56,9 +75,13 @@ TOKEN_RESPONSE=$(curl -sS \
     --data-urlencode "client_secret=${ANYPOINT_CLIENT_SECRET}" \
     --data-urlencode "grant_type=client_credentials")
 
+# Validate authentication response JSON
 if ! echo "${TOKEN_RESPONSE}" | jq empty >/dev/null 2>&1; then
     echo ""
     echo "ERROR: Authentication API returned invalid JSON."
+    echo ""
+    echo "Response:"
+    echo "${TOKEN_RESPONSE}"
     exit 1
 fi
 
@@ -86,15 +109,20 @@ PS_CONFIG=$(curl -sS \
     -H "Authorization: Bearer ${TOKEN}" \
     -H "Content-Type: application/json")
 
+# Check empty response
 if [[ -z "${PS_CONFIG}" ]]; then
     echo ""
     echo "ERROR: Empty response from Private Space API."
     exit 1
 fi
 
+# Validate JSON
 if ! echo "${PS_CONFIG}" | jq empty >/dev/null 2>&1; then
     echo ""
     echo "ERROR: Private Space API returned invalid JSON."
+    echo ""
+    echo "Response:"
+    echo "${PS_CONFIG}"
     exit 1
 fi
 
@@ -114,20 +142,37 @@ if [[ "${MODE}" == "kill-switch" ]]; then
 
     BACKUP_FILE="${BACKUP_DIR}/firewall-backup-${TIMESTAMP}.json"
 
+    # ----------------------------------------------------------
+    # IMPORTANT:
+    # Backup firewallRules, NOT managedFirewallRules
+    # ----------------------------------------------------------
+
     echo "${PS_CONFIG}" | jq '{
-        managedFirewallRules: (.managedFirewallRules // [])
+        firewallRules: (.firewallRules // [])
     }' > "${BACKUP_FILE}"
 
+    # Check backup file
     if [[ ! -s "${BACKUP_FILE}" ]]; then
         echo ""
         echo "ERROR: Backup file was not created."
         exit 1
     fi
 
+    # Validate backup JSON
     if ! jq empty "${BACKUP_FILE}" >/dev/null 2>&1; then
         echo ""
         echo "ERROR: Backup JSON is invalid."
         exit 1
+    fi
+
+    # Check that firewallRules actually exists
+    FIREWALL_RULE_COUNT=$(jq '.firewallRules | length' "${BACKUP_FILE}")
+
+    if [[ "${FIREWALL_RULE_COUNT}" -eq 0 ]]; then
+        echo ""
+        echo "WARNING: No firewall rules were found in the Private Space configuration."
+    else
+        echo "Firewall rules found: ${FIREWALL_RULE_COUNT}"
     fi
 
     echo "Firewall backup successfully created."
@@ -162,6 +207,10 @@ else
 
 fi
 
+# --------------------------------------------------------------
+# Validate firewall JSON
+# --------------------------------------------------------------
+
 if ! echo "${FIREWALL_JSON}" | jq empty >/dev/null 2>&1; then
     echo ""
     echo "ERROR: Firewall configuration contains invalid JSON."
@@ -185,6 +234,10 @@ HTTP_RESPONSE=$(curl -sS \
     -H "Content-Type: application/json;charset=UTF-8" \
     --data-raw "${FIREWALL_JSON}")
 
+# --------------------------------------------------------------
+# Separate response body and HTTP status
+# --------------------------------------------------------------
+
 HTTP_BODY=$(echo "${HTTP_RESPONSE}" | sed '$d')
 HTTP_CODE=$(echo "${HTTP_RESPONSE}" | tail -n 1)
 
@@ -205,6 +258,7 @@ if [[ "${HTTP_CODE}" =~ ^2[0-9][0-9]$ ]]; then
         printf '%s\n' ' KILL SWITCH SUCCESSFULLY ENGAGED'
         printf '%s\n' '=============================================================='
         printf '\n'
+
         echo "Pre-kill-switch firewall backup created successfully."
         echo "Backup file: ${BACKUP_FILE}"
         echo ""
